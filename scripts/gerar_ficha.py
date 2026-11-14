@@ -9,15 +9,13 @@ from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-FONTES = {
-    "display": os.path.join(AQUI, "fontes", "lilita-one-400.woff2"),
-    600: os.path.join(AQUI, "fontes", "nunito-600.woff2"),
-    800: os.path.join(AQUI, "fontes", "nunito-800.woff2"),
-    900: os.path.join(AQUI, "fontes", "nunito-900.woff2"),
-}
+FONTES = {k: os.path.join(AQUI, "fontes", f"{k}.woff2") for k in ("syne-700", "manrope-400", "manrope-600", "manrope-700")}
 
-TEXTO, TEXTO_2 = "#EEF3FF", "#B6C5F2"
-CIANO, AMBAR, ROXO, VERDE, ROSA, AZUL = "#5CE1FF", "#FFB23F", "#A970FF", "#3EE08F", "#FF6FB5", "#4D8DFF"
+# tokens do site da Agência Egon
+BG, INK, MUTED = "#07060B", "#F4F0FF", "#B7ADC8"
+LINE, VIOLET, VIOLET2 = "#B48CFF", "#8B5CF6", "#C4B5FD"
+TONS = ["#C4B5FD", "#8B5CF6", "#6D28D9", "#4C1D95", "#2E1065"]  # linguagens em escala de violeta
+PAD = 72
 
 # ------------------------------------------------------------------ dados
 QUERY = """
@@ -105,7 +103,7 @@ def T(texto, k, size, x, y, fill, anchor="start", spacing=0):
     escala = size / f["head"].unitsPerEm
     w = largura(texto, k, size, spacing)
     x -= w / 2 if anchor == "middle" else (w if anchor == "end" else 0)
-    chave = "L" if k == "display" else f"N{k}"
+    chave = k.replace("-", "")
     usos, cur = [], 0.0
     for ch in texto:
         g = cmap.get(ord(ch)) or cmap[32]
@@ -117,47 +115,29 @@ def T(texto, k, size, x, y, fill, anchor="start", spacing=0):
         cur += hmtx[g][0] + spacing / escala
     return f'<g transform="translate({x:.1f},{y:.1f}) scale({escala:.5f},{-escala:.5f})" fill="{fill}">{"".join(usos)}</g>'
 
-def documento(W, H, titulo, corpo, defs_extra=""):
+def documento(W, H, titulo, corpo):
     glifos = "".join(f'<path id="{k}" d="{d}"/>' for k, d in _glifos.items()); _glifos.clear()
     titulo = titulo.replace("&", "&amp;").replace("<", "&lt;")
     return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" aria-labelledby="t">
 <title id="t">{titulo}</title>
 <defs>{glifos}
-<clipPath id="cantos"><rect width="{W}" height="{H}" rx="26"/></clipPath>
-<linearGradient id="fundo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0F1C55"/><stop offset="1" stop-color="#0B1545"/></linearGradient>
-<linearGradient id="ouro" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE08A"/><stop offset="1" stop-color="#F29A1F"/></linearGradient>
-<linearGradient id="xp" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="{CIANO}"/><stop offset="1" stop-color="{AZUL}"/></linearGradient>
-<filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-{defs_extra}
+<clipPath id="cantos"><rect width="{W}" height="{H}" rx="24"/></clipPath>
+<radialGradient id="brilho"><stop offset="0" stop-color="{VIOLET}" stop-opacity=".35"/><stop offset=".68" stop-color="{VIOLET}" stop-opacity="0"/></radialGradient>
 </defs>
 <g clip-path="url(#cantos)">
-<rect width="{W}" height="{H}" fill="url(#fundo)"/>
+<rect width="{W}" height="{H}" fill="{BG}"/>
+<circle cx="{W-100}" cy="40" r="380" fill="url(#brilho)"/>
 {corpo}
 </g>
+<rect x=".75" y=".75" width="{W-1.5}" height="{H-1.5}" rx="23.5" fill="none" stroke="{LINE}" stroke-opacity=".18" stroke-width="1.5"/>
 </svg>
 '''
 
-# ------------------------------------------------------------------ ícones
-def icone(tipo, cor="#FFFFFF", sw=2.2):
-    s = f'fill="none" stroke="{cor}" stroke-width="{sw}" stroke-linecap="round" stroke-linejoin="round"'
-    return {
-        "grade": f'<rect x="-11" y="-11" width="9" height="9" rx="2" {s}/><rect x="2" y="-11" width="9" height="9" rx="2" {s}/><rect x="-11" y="2" width="9" height="9" rx="2" {s}/><rect x="2" y="2" width="9" height="9" rx="2" fill="{cor}" stroke="{cor}" stroke-width="{sw}"/>',
-        "commit": f'<circle cx="0" cy="0" r="5" {s}/><line x1="-13" y1="0" x2="-5" y2="0" {s}/><line x1="5" y1="0" x2="13" y2="0" {s}/>',
-        "pasta": f'<path d="M-12,-8 h8 l3,3 h13 v14 h-24 Z" {s}/>',
-        "estrela": f'<path d="M0,-12 l3.5,7.5 l8,1 l-6,5.5 l1.6,8 l-7.1,-4 l-7.1,4 l1.6,-8 l-6,-5.5 l8,-1 Z" {s}/>',
-        "fogo": f'<path d="M0,12 c-7,0 -10,-5 -10,-10 c0,-6 5,-9 6,-15 c3,3 4,6 4,9 c2,-2 3,-4 3,-6 c4,4 7,8 7,12 c0,5 -4,10 -10,10 Z" {s}/>',
-        "trofeu": f'<path d="M-7,-11 h14 v7 a7,7 0 0 1 -14,0 Z" {s}/><path d="M-7,-8 h-4 a4,4 0 0 0 4,6 M7,-8 h4 a4,4 0 0 1 -4,6" {s}/><path d="M0,3 v5 M-5,11 h10" {s}/>',
-        "cadeado": f'<rect x="-8" y="-2" width="16" height="13" rx="3" {s}/><path d="M-5,-2 v-4 a5,5 0 0 1 10,0 v4" {s}/>',
-        "bandeira": f'<path d="M-8,12 V-11 M-8,-10 h14 l-3,5 l3,5 h-14" {s}/>',
-        "martelo": f'<path d="M-2,-6 l10,-6 l4,6 l-10,6 Z M2,-1 l-12,12" {s}/>',
-        "raio": f'<path d="M2,-12 l-9,14 h7 l-2,10 l9,-14 h-7 Z" {s}/>',
-        "linguas": f'<circle cx="0" cy="0" r="11" {s}/><path d="M-11,0 h22 M0,-11 c-5,5 -5,17 0,22 c5,-5 5,-17 0,-22" {s}/>',
-    }[tipo]
+def linha(x1, x2, y):
+    return f'<line x1="{x1}" y1="{y}" x2="{x2}" y2="{y}" stroke="{LINE}" stroke-opacity=".18" stroke-width="1.5"/>'
 
-def nivel_de(xp):
-    nivel = int(math.sqrt(xp / 10)) + 1
-    base, prox = 10 * (nivel - 1) ** 2, 10 * nivel ** 2
-    return nivel, base, prox
+def rotulo(t, x, y, anchor="start"):
+    return T(t.upper(), "manrope-600", 17, x, y, VIOLET2, anchor, 17 * 0.16)
 
 def dias(n):
     return f"{n} dia" if n == 1 else f"{n} dias"
@@ -165,90 +145,80 @@ def dias(n):
 def fmt(n):
     return f"{n:,}".replace(",", ".")
 
-# ------------------------------------------------------------------ ficha
-def ficha(d):
-    W, H = 1200, 500
-    b = []
-    xp = d["contrib"]
-    nivel, base, prox = nivel_de(xp)
-    # emblema de nível
-    hexa = " ".join(f"{110 + 58*math.cos(math.radians(60*i-90)):.1f},{118 + 58*math.sin(math.radians(60*i-90)):.1f}" for i in range(6))
-    b.append(f'<polygon points="{hexa}" fill="{AMBAR}" opacity=".35" filter="url(#glow)"/>')
-    b.append(f'<polygon points="{hexa}" fill="url(#ouro)" stroke="#FFF1C2" stroke-width="2.5"/>')
-    b.append(T("NÍVEL", 900, 14, 110, 92, "#7A3E00", "middle", 1.5))
-    b.append(T(str(nivel), "display", 50, 110, 142, "#5A2C00", "middle"))
-    b.append(T("Ficha do jogador", "display", 40, 194, 112, TEXTO))
-    b.append(T(f"@{d['login']}", 800, 18, 196, 142, TEXTO_2))
-    # barra de XP
-    pct = (xp - base) / max(prox - base, 1)
-    b.append(f'<rect x="52" y="198" width="510" height="18" rx="9" fill="#1A2A6E"/>')
-    b.append(f'<rect x="52" y="198" width="{max(18, 510*pct):.1f}" height="18" rx="9" fill="url(#xp)"/>')
-    b.append(T(f"XP {fmt(xp)} de {fmt(prox)}", 800, 15, 52, 240, TEXTO))
-    b.append(T("1 XP = 1 contribuição nos últimos 12 meses", 600, 15, 562, 240, TEXTO_2, "end"))
-    # atributos
-    stats = [("grade", fmt(d["contrib"]), "contribuições/ano", CIANO), ("commit", fmt(d["commits"]), "commits/ano", AZUL),
-             ("pasta", fmt(d["repos"]), "repositórios", ROXO), ("estrela", fmt(d["estrelas"]), "estrelas", AMBAR),
-             ("fogo", f"{d['seq_atual']}d", "sequência atual", "#FF7A1A"), ("trofeu", f"{d['seq_maior']}d", "maior sequência", VERDE)]
-    for i, (ic, val, rot, cor) in enumerate(stats):
-        x = 52 + (i % 3) * 172; y = 270 + (i // 3) * 76
-        b.append(f'<rect x="{x}" y="{y}" width="160" height="64" rx="14" fill="#14256A" stroke="{cor}" stroke-opacity=".35"/>')
-        b.append(f'<g transform="translate({x+26},{y+32})">{icone(ic, cor)}</g>')
-        b.append(T(val, "display", 28, x + 50, y + 34, TEXTO))
-        b.append(T(rot, 600, 13, x + 50, y + 53, TEXTO_2))
-    # linguagens
-    b.append(T("Linguagens nos repositórios", 800, 15, 52, 447, TEXTO_2))
-    bx, bw, by = 300, 262, 435
-    barras, x = [], bx
-    for nome, frac, cor in d["linguagens"]:
-        w = bw * frac
-        barras.append(f'<rect x="{x:.1f}" y="{by}" width="{max(w, 2):.1f}" height="14" fill="{cor}"/>')
-        x += w
-    b.append(f'<clipPath id="barraL"><rect x="{bx}" y="{by}" width="{bw}" height="14" rx="7"/></clipPath>')
-    b.append(f'<g clip-path="url(#barraL)"><rect x="{bx}" y="{by}" width="{bw}" height="14" fill="#1A2A6E"/>{"".join(barras)}</g>')
-    lx = 52
-    for nome, frac, cor in d["linguagens"][:4]:
-        txt = f"{nome} {frac*100:.0f}%"
-        b.append(f'<circle cx="{lx+5}" cy="471" r="5" fill="{cor}"/>')
-        b.append(T(txt, 600, 13, lx + 15, 476, TEXTO_2))
-        lx += largura(txt, 600, 13) + 34
-    # divisória e conquistas
-    b.append('<line x1="612" y1="50" x2="612" y2="456" stroke="#2A3F8F" stroke-width="2" stroke-dasharray="2 8" stroke-linecap="round"/>')
-    b.append(conquistas_bloco(d, 650))
-    titulo = (f"Ficha do jogador de {d['login']}: nível {nivel}, {d['contrib']} contribuições e {d['commits']} commits nos últimos 12 meses, "
-              f"{d['repos']} repositórios públicos, {d['estrelas']} estrelas, sequência atual de {dias(d['seq_atual'])} e maior sequência de {dias(d['seq_maior'])}.")
-    return documento(W, H, titulo, "\n".join(b))
+MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
 
-CONQUISTAS = [
-    ("Primeiro passo", "1º repositório", "bandeira", lambda d: (d["repos"], 1)),
-    ("Construtor", "5 repositórios", "martelo", lambda d: (d["repos"], 5)),
-    ("Maratonista", "100 commits/ano", "raio", lambda d: (d["commits"], 100)),
-    ("Sequência de fogo", "7 dias seguidos", "fogo", lambda d: (d["seq_maior"], 7)),
-    ("Poliglota", "4 linguagens", "linguas", lambda d: (d["n_linguagens"], 4)),
+CONQUISTAS = [  # nome, meta, unidade (para o progresso), regra
+    ("Primeiro passo", "1º repositório", "repositório", lambda d: (d["repos"], 1)),
+    ("Construtor", "5 repositórios", "repositórios", lambda d: (d["repos"], 5)),
+    ("Maratonista", "100 commits no ano", "commits no ano", lambda d: (d["commits"], 100)),
+    ("Sequência de fogo", "7 dias seguidos", "dias seguidos", lambda d: (d["seq_maior"], 7)),
+    ("Poliglota", "4 linguagens", "linguagens", lambda d: (d["n_linguagens"], 4)),
     ("Primeira estrela", "1 estrela", "estrela", lambda d: (d["estrelas"], 1)),
 ]
 
-def conquistas_bloco(d, x0):
-    b = []
+def ficha(d, hoje):
+    W, H = 1200, 976
+    W2 = W - PAD
+    b = [rotulo("Atividade no GitHub", PAD, 104),
+         T("Código em movimento.", "syne-700", 56, PAD - 2, 180, INK),
+         T(f"@{d['login']}  |  atualizado em {hoje.day} {MESES[hoje.month-1]} {hoje.year}", "manrope-400", 17, W2, 104, MUTED, "end")]
+    stats = [(fmt(d["contrib"]), "contribuições no último ano"), (fmt(d["commits"]), "commits no último ano"),
+             (fmt(d["repos"]), "repositórios públicos"), (fmt(d["estrelas"]), "estrelas recebidas"),
+             (dias(d["seq_atual"]), "sequência atual"), (dias(d["seq_maior"]), "maior sequência")]
+    for linha_i in range(2):
+        y = 232 + linha_i * 140
+        b.append(linha(PAD, W2, y))
+        for c in range(3):
+            v, l = stats[linha_i * 3 + c]
+            x = PAD + c * 352
+            b.append(T(v, "syne-700", 48, x, y + 66, INK))
+            b.append(T(l, "manrope-400", 18, x, y + 100, MUTED))
+    # linguagens
+    y = 512
+    b.append(linha(PAD, W2, y))
+    b.append(rotulo("Linguagens", PAD, y + 46))
+    bx, bw, by = PAD, W2 - PAD, y + 70
+    barras, x = [], bx
+    for i, (nome, frac, _cor) in enumerate(d["linguagens"]):
+        w = bw * frac
+        barras.append(f'<rect x="{x:.1f}" y="{by}" width="{max(w, 2):.1f}" height="12" fill="{TONS[i % len(TONS)]}"/>')
+        x += w
+    b.append(f'<clipPath id="barra"><rect x="{bx}" y="{by}" width="{bw}" height="12" rx="6"/></clipPath>')
+    b.append(f'<g clip-path="url(#barra)"><rect x="{bx}" y="{by}" width="{bw}" height="12" fill="#1A1526"/>{"".join(barras)}</g>')
+    lx = PAD
+    for i, (nome, frac, _cor) in enumerate(d["linguagens"]):
+        txt = f"{nome} {frac*100:.0f}%"
+        b.append(f'<circle cx="{lx+6}" cy="{by+44}" r="6" fill="{TONS[i % len(TONS)]}"/>')
+        b.append(T(txt, "manrope-400", 18, lx + 20, by + 50, MUTED))
+        lx += largura(txt, "manrope-400", 18) + 48
+    # conquistas
+    y = 662
     feitas = sum(1 for *_, f in CONQUISTAS if f(d)[0] >= f(d)[1])
-    b.append(T("Conquistas", "display", 40, x0, 112, TEXTO))
-    b.append(T(f"{feitas} de {len(CONQUISTAS)} desbloqueadas", 800, 18, x0, 142, TEXTO_2))
-    for i, (nome, meta, ic, f) in enumerate(CONQUISTAS):
-        atual, alvo = f(d)
-        ok = atual >= alvo
-        cx = x0 + 80 + (i % 3) * 170; cy = 216 + (i // 3) * 146
+    b.append(linha(PAD, W2, y))
+    b.append(rotulo("Conquistas", PAD, y + 46))
+    b.append(T(f"{feitas} de {len(CONQUISTAS)} desbloqueadas", "manrope-400", 17, W2, y + 46, MUTED, "end"))
+    cw, ch, gap = (W2 - PAD - 2 * 18) / 3, 84, 18
+    for i, (nome, meta, unidade, f) in enumerate(CONQUISTAS):
+        atual, alvo = f(d); ok = atual >= alvo
+        x = PAD + (i % 3) * (cw + gap); cy = y + 70 + (i // 3) * (ch + gap)
+        borda = f'stroke="{VIOLET}" stroke-opacity=".7"' if ok else f'stroke="{LINE}" stroke-opacity=".18"'
+        b.append(f'<rect x="{x:.1f}" y="{cy}" width="{cw:.1f}" height="{ch}" rx="18" fill="#FFFFFF" fill-opacity=".02" {borda} stroke-width="1.5"/>')
+        ix, iy = x + 42, cy + ch / 2
         if ok:
-            b.append(f'<circle cx="{cx}" cy="{cy}" r="40" fill="{AMBAR}" opacity=".35" filter="url(#glow)"/>')
-            b.append(f'<circle cx="{cx}" cy="{cy}" r="38" fill="url(#ouro)"/>')
-            b.append(f'<circle cx="{cx}" cy="{cy}" r="29" fill="#1F3FAE" stroke="#FFF1C2" stroke-width="2"/>')
-            b.append(f'<g transform="translate({cx},{cy}) scale(1.25)">{icone(ic, "#FFFFFF")}</g>')
-            legenda, cor_leg = meta, TEXTO_2
+            b.append(f'<circle cx="{ix}" cy="{iy}" r="18" fill="{VIOLET}"/>')
+            b.append(f'<path d="M{ix-7},{iy} l5,5 l9,-10" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>')
+            legenda = meta
         else:
-            b.append(f'<circle cx="{cx}" cy="{cy}" r="38" fill="#1A2A6E" stroke="#2E418F" stroke-width="2" stroke-dasharray="4 5"/>')
-            b.append(f'<g transform="translate({cx},{cy}) scale(1.2)" opacity=".75">{icone("cadeado", "#7F92CF")}</g>')
-            legenda, cor_leg = f"{fmt(min(atual, alvo))} de {fmt(alvo)}", "#8EA0D8"
-        b.append(T(nome, 800, 16, cx, cy + 62, TEXTO if ok else "#9AABDF", "middle"))
-        b.append(T(legenda, 600, 13, cx, cy + 82, cor_leg, "middle"))
-    return "\n".join(b)
+            b.append(f'<circle cx="{ix}" cy="{iy}" r="18" fill="none" stroke="{LINE}" stroke-opacity=".35" stroke-width="1.5"/>')
+            b.append(f'<rect x="{ix-6}" y="{iy-2}" width="12" height="10" rx="2" fill="none" stroke="{MUTED}" stroke-width="1.8"/>'
+                     f'<path d="M{ix-3.5},{iy-2} v-3 a3.5,3.5 0 0 1 7,0 v3" fill="none" stroke="{MUTED}" stroke-width="1.8"/>')
+            legenda = f"{fmt(min(atual, alvo))} de {fmt(alvo)} {unidade}"
+        b.append(T(nome, "manrope-700", 20, x + 76, cy + 38, INK if ok else MUTED))
+        b.append(T(legenda, "manrope-400", 16, x + 76, cy + 62, MUTED))
+    titulo = (f"Atividade no GitHub de {d['login']}: {d['contrib']} contribuições e {d['commits']} commits nos últimos 12 meses, "
+              f"{d['repos']} repositórios públicos, {d['estrelas']} estrelas, sequência atual de {dias(d['seq_atual'])} e maior sequência de {dias(d['seq_maior'])}. "
+              f"{feitas} de {len(CONQUISTAS)} conquistas desbloqueadas.")
+    return documento(W, H, titulo, "\n".join(b))
 
 # ------------------------------------------------------------------ principal
 def main():
@@ -261,7 +231,7 @@ def main():
         user = buscar(os.environ["USUARIO"], os.environ["GITHUB_TOKEN"])
     d = resumir(user, hoje)
     with open(os.path.join(saida, "ficha.svg"), "w", encoding="utf-8") as f:
-        f.write(ficha(d))
+        f.write(ficha(d, hoje))
     print(json.dumps({k: v for k, v in d.items() if k != "linguagens"}, ensure_ascii=False))
 
 if __name__ == "__main__":
