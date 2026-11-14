@@ -1,0 +1,56 @@
+name: Atualizar ficha do jogador
+
+# Gera a ficha (estatísticas + conquistas) e a cobrinha de contribuições
+# e publica tudo na branch "output", que o README usa.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * *" # todo dia, 03:17 no horário de Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ficha
+  cancel-in-progress: true
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install fonttools brotli
+
+      - name: Gerar ficha do jogador e conquistas
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          USUARIO: ${{ github.repository_owner }}
+        run: python scripts/gerar_ficha.py dist
+
+      - name: Gerar cobrinha de contribuições
+        uses: Platane/snk/svg-only@v3
+        with:
+          github_user_name: ${{ github.repository_owner }}
+          outputs: |
+            dist/cobrinha.svg?color_snake=#1F3FAE&color_dots=#ebedf0,#c7d7fe,#8fb3ff,#4d7cf0,#1e3a8a
+            dist/cobrinha-escura.svg?color_snake=#5CE1FF&color_dots=#161b22,#13306b,#1e4fb8,#3b82f6,#5ce1ff
+
+      - name: Publicar na branch output
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd dist
+          git init -q -b output
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Atualiza ficha, conquistas e cobrinha"
+          git push -fq "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" output
