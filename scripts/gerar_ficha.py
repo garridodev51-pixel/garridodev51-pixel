@@ -26,7 +26,7 @@ query($login: String!) {
     login
     repositories(ownerAffiliations: OWNER, isFork: false, privacy: PUBLIC, first: 100) {
       totalCount
-      nodes { stargazerCount languages(first: 10, orderBy: {field: SIZE, direction: DESC}) { edges { size node { name color } } } }
+      nodes { name stargazerCount languages(first: 10, orderBy: {field: SIZE, direction: DESC}) { edges { size node { name color } } } }
     }
     pullRequests { totalCount }
     contributionsCollection {
@@ -66,6 +66,8 @@ def resumir(user, hoje):
     repos = user["repositories"]["nodes"]
     langs = {}
     for r in repos:
+        if r.get("name", "").lower() == user["login"].lower():
+            continue  # o repositório do próprio perfil (gerador da ficha) não entra nas linguagens
         for e in r["languages"]["edges"]:
             n = e["node"]["name"]
             langs.setdefault(n, [0, e["node"]["color"] or "#8B949E"])
@@ -157,6 +159,9 @@ def nivel_de(xp):
     base, prox = 10 * (nivel - 1) ** 2, 10 * nivel ** 2
     return nivel, base, prox
 
+def dias(n):
+    return f"{n} dia" if n == 1 else f"{n} dias"
+
 def fmt(n):
     return f"{n:,}".replace(",", ".")
 
@@ -210,7 +215,7 @@ def ficha(d):
     b.append('<line x1="612" y1="50" x2="612" y2="456" stroke="#2A3F8F" stroke-width="2" stroke-dasharray="2 8" stroke-linecap="round"/>')
     b.append(conquistas_bloco(d, 650))
     titulo = (f"Ficha do jogador de {d['login']}: nível {nivel}, {d['contrib']} contribuições e {d['commits']} commits nos últimos 12 meses, "
-              f"{d['repos']} repositórios públicos, {d['estrelas']} estrelas, sequência atual de {d['seq_atual']} dias e maior sequência de {d['seq_maior']} dias.")
+              f"{d['repos']} repositórios públicos, {d['estrelas']} estrelas, sequência atual de {dias(d['seq_atual'])} e maior sequência de {dias(d['seq_maior'])}.")
     return documento(W, H, titulo, "\n".join(b))
 
 CONQUISTAS = [
